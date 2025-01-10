@@ -7,6 +7,9 @@ BENZENE_HOME=$(pwd)
 # install Mozilla's RR debugger
 cd $BENZENE_HOME
 git clone https://github.com/rr-debugger/rr
+cd rr 
+git checkout 5.8.0 # pinpointing this version works, after commit https://github.com/rr-debugger/rr/commit/db5faf831c9f73c99acfccef2bc950c66b2e44b0 broke rr on older kernels
+cd ..
 mkdir rr-build && cd rr-build
 cmake ../rr && make -j$(nproc)
 # sudo make install
