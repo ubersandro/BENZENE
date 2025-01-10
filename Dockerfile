@@ -20,7 +20,7 @@ COPY setup.sh setup.sh
 RUN apt-get update
 RUN apt-get install git  ccache cmake make g++-multilib gdb \
   pkg-config coreutils python3-pexpect manpages-dev git \
-  ninja-build capnproto libcapnp-dev zlib1g-dev libgmp-dev linux-tools-common linux-tools-generic linux-tools-`uname -r` wget autoconf automake libtool curl make g++ unzip pip python-setuptools libpng-dev libxml2-dev -y
+  ninja-build capnproto libcapnp-dev zlib1g-dev libgmp-dev linux-tools-common linux-tools-generic linux-tools-`uname -r` wget autoconf automake libtool curl make g++ unzip pip python-setuptools libpng-dev libxml2-dev libzstd-dev libcapnp-dev gcc-multilib g++-multilib lldb -y
 
 RUN pip3 install setuptools pandas scikit-learn protobuf capstone
 
@@ -34,5 +34,10 @@ RUN apt-get install libpng-dev libxml2-dev -y
 RUN wget http://museum.php.net/php5/php-5.5.0.tar.gz && tar xvfz php-5.5.0.tar.gz
 WORKDIR  /benzene/example/cve-2013-7226/php-5.5.0
 RUN ./configure --with-gd && make -j$(nproc)
+
+# the following seems needed to account for some path problems
+RUN alias gdb=/benzene/gdb-11.2/gdb/gdb 
+RUN echo "alias gdb=/benzene/gdb-11.2/gdb/gdb"> /root/.bashrc
+RUN ln -s /usr/share/gdb/python /usr/local/share/gdb/python
 
 WORKDIR /benzene
