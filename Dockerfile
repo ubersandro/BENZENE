@@ -1,5 +1,5 @@
-FROM ubuntu:20.04
-
+#FROM ubuntu:20.04
+FROM ghcr.io/shellphish-support-syndicate/challenge-004-full-nginx-cp:v1.0.0
 
 ARG DEBIAN_FRONTEND=noninteractive
 
