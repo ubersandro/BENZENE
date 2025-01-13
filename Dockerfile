@@ -38,6 +38,7 @@ RUN ./configure --with-gd && make -j$(nproc)
 # the following seems needed to account for some path problems
 RUN alias gdb=/benzene/gdb-11.2/gdb/gdb 
 RUN echo "alias gdb=/benzene/gdb-11.2/gdb/gdb"> /root/.bashrc
-RUN ln -s /usr/share/gdb/python /usr/local/share/gdb
+RUN if [ ! -d /usr/local/share/gdb/ ]; then  mkdir -p /usr/local/share/gdb; fi
+RUN ln -s /usr/share/gdb/python /usr/local/share/gdb/python
 
 WORKDIR /benzene
