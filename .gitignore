@@ -12,3 +12,4 @@ out
 result_matrix.csv
 rev_data_flow.csv
 .devcontainer
+.vagrant
