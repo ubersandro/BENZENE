@@ -82,7 +82,7 @@ void InsNode::setDerefEdgeInfo(INS ins) {
 
 int InsNode::resolveDataFlowTags(taint_t** taints, size_t* num_item, uint32_t edge_idx) {
     // LOG("Node " + hexstr(getAddr()) + "\n");
-    if (df_edges_[edge_idx] == nullptr) {
+    if (df_edges_[edge_idx] != nullptr) {
         // LOG("\t" + REG_StringShort(edge->getReg()) + "\n");
         return df_edges_[edge_idx]->resolveTags(taints, num_item);
     }
@@ -92,7 +92,7 @@ int InsNode::resolveDataFlowTags(taint_t** taints, size_t* num_item, uint32_t ed
 }
 
 int InsNode::resolveDerefTags(taint_t** taints, size_t* num_item, uint32_t edge_idx) {
-    if (deref_edges_[edge_idx] == nullptr) {
+    if (deref_edges_[edge_idx] != nullptr) {
         // LOG("\t" + REG_StringShort(edge->getReg()) + "\n");
         return deref_edges_[edge_idx]->resolveTags(taints, num_item);
     }
