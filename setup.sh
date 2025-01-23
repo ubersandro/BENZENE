@@ -2,7 +2,7 @@
 
 set -e
 
-BENZENE_HOME=$(pwd)
+BENZENE_HOME=/benzene
 
 # install Mozilla's RR debugger
 cd $BENZENE_HOME
