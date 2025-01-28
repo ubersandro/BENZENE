@@ -13,3 +13,11 @@ result_matrix.csv
 rev_data_flow.csv
 .devcontainer
 .vagrant
+dr-build/
+dynamorio/
+gdb-11.2.tar.gz
+gdb-11.2/
+pin-3.21-98484-ge7cd811fd-gcc-linux.tar.gz
+pin-3.21/
+rr-build/
+rr/

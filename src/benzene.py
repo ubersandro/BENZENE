@@ -636,11 +636,21 @@ def init_options():
 
         match = regex.search(asan_report_txt)
         if match == None:
-            print("ASAN report parsing failed")
-            exit(-1)
+            # report might be linked to the use of sanitizer for sigsegv
+            # exemplar : ==3658==ERROR: AddressSanitizer: SEGV on unknown address 0x000000000011 (pc 0x5555558a7148 bp 0x7fffffffe1e0 sp 0x7fffffffe1a0 T0)
+            print("[*] Trying new match for SIGSEGV")
+            r  = re.compile(r'SEGV\son\sunknown\saddress\s0x[0-9abcdef]*\s\(pc\s(0x[0-9abcdef]*)')
+            new_match = r.search(asan_report_txt)
+            if new_match == None:
+                print("ASAN report parsing failed")
+                exit(-1)
+            config.asan_report_addr = int(new_match.group(1), 16) #todo: for now I just assume that asan report type is not used 
+            # and that asan report addr parsed like this in this context is ok -> @todo check on backtracer.py
+            print(f"[*] DEBUG 0x{config.asan_report_addr:x}")
 
-        config.asan_type = match.group(1)
-        config.asan_report_addr = int(match.group(2), 16)
+        else: 
+            config.asan_type = match.group(1)
+            config.asan_report_addr = int(match.group(2), 16)
     else:
         p = subprocess.Popen(config.target_cmd.split(), stdin=stdin, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
         p.wait()
