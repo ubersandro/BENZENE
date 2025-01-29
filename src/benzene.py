@@ -616,8 +616,8 @@ def init_options():
     # parse ASAN-related metadata
     if config.asan == True:
         try:
-            if os.environ['ASAN_OPTIONS'] != 'detect_leaks=0':
-                print("ASAN's detect_leaks option not disabled. Please run \"export ASAN_OPTIONS=detect_leaks=0\"")
+            if not 'detect_leaks=0' in os.environ['ASAN_OPTIONS']:
+                print("ASAN's detect_leaks option not disabled. Please run \"export ASAN_OPTIONS=detect_leaks=0:$ASAN_OPTIONS\"")
                 exit(-1)
         except KeyError:
             print("ASAN's detect_leaks option not disabled. Please run \"export ASAN_OPTIONS=detect_leaks=0\"")
