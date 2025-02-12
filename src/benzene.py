@@ -88,8 +88,18 @@ def run_backtracer(config: BenzeneConfig):
         p.wait()
 
         if p.returncode != 0:
-            print("[FATAL] function extraction failed...")
-            return -1
+            retries = 3
+            for i in range(retries):
+                print("[WARN] backtracer script failed, retrying... (retry: %d)" % (i))
+                p = subprocess.Popen([rr_path, 'replay', rr_trace_path], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                p.communicate(input=bytes(source_cmd, 'utf-8'))
+                p.wait()
+
+                if p.returncode == 0:
+                    break
+                elif i == retries-1:
+                    logging.fatal('backtracer script failed')
+                    return -1
     else:
         print("[INFO] \"%s\" already exists, skip reverse backtracer" % (origin_json_path))
 
