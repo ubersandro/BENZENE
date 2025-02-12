@@ -116,15 +116,22 @@ def run_dynvfg(config: BenzeneConfig):
         stdin = subprocess.PIPE
         if config.stdin_filepath:
             stdin = open(config.stdin_filepath, 'rb')
-
-        ret = subprocess.run(cmd_list,
+        retries = 5
+        for i in range(retries):
+            
+            ret = subprocess.run(cmd_list,
                             stdin=stdin,
-                            stdout=open(os.devnull, 'wb'),
-                            stderr=open(os.devnull, 'wb'))
+                            stdout=open(f"pintool-stdout-run{i}", 'wb'),
+                            stderr=open(f"pintool-stderr-run{i}", 'wb'))
+        
+            
 
-        if ret.returncode != 0:
-            print("[FATAL] Something went wrong!")
-            return -1
+            if ret.returncode != 0:
+                print(f"[FATAL] Something went wrong!, run {i}")
+            else:
+                break
+            if ì == retries-1:
+                return -1
 
         if config.stdin_filepath: stdin.close()
 
