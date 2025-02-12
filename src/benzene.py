@@ -643,6 +643,12 @@ def init_options():
             new_match = r.search(asan_report_txt)
             if new_match == None:
                 print("ASAN report parsing failed")
+                print(asan_report_txt)
+                try: 
+                    with open("log.txt", "w") as f:
+                        f.write(asan_report_txt)
+                except:
+                    print("bailing out")
                 exit(-1)
             config.asan_report_addr = int(new_match.group(1), 16) #todo: for now I just assume that asan report type is not used 
             # and that asan report addr parsed like this in this context is ok -> @todo check on backtracer.py
