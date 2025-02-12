@@ -130,7 +130,7 @@ def run_dynvfg(config: BenzeneConfig):
                 print(f"[FATAL] Something went wrong!, run {i}")
             else:
                 break
-            if ì == retries-1:
+            if i == retries-1:
                 return -1
 
         if config.stdin_filepath: stdin.close()
