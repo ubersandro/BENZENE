@@ -1,0 +1,45 @@
+FROM ubuntu:16.04
+#FROM ghcr.io/shellphish-support-syndicate/challenge-004-full-nginx-cp:v1.0.0
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+ENV BENZENE_HOME "/benzene"
+ENV PIN_ROOT "/benzene/pin-3.21"
+ENV DR_BUILD "/benzene/dr-build"
+
+RUN apt-get update
+RUN apt-get install git -y
+
+RUN mkdir benzene
+WORKDIR /benzene
+
+COPY benzene /benzene/benzene
+COPY src src
+COPY libdft64 libdft64
+COPY setup.sh setup.sh
+
+RUN apt-get update
+RUN apt-get install git  ccache cmake make g++-multilib gdb \
+  pkg-config coreutils python3-pexpect manpages-dev git \
+  ninja-build capnproto libcapnp-dev zlib1g-dev libgmp-dev linux-tools-common linux-tools-generic wget autoconf automake libtool curl make g++ unzip python3-pip python-setuptools libpng-dev libxml2-dev libzstd-dev libcapnp-dev gcc-multilib g++-multilib lldb -y
+
+RUN pip3 install setuptools pandas scikit-learn protobuf capstone
+
+
+RUN /benzene/setup.sh
+
+# build testcase CVE-2013-7226
+COPY example /benzene/example
+WORKDIR /benzene/example/cve-2013-7226
+RUN apt-get install libpng-dev libxml2-dev -y
+RUN wget http://museum.php.net/php5/php-5.5.0.tar.gz && tar xvfz php-5.5.0.tar.gz
+WORKDIR  /benzene/example/cve-2013-7226/php-5.5.0
+RUN ./configure --with-gd && make -j$(nproc)
+
+# the following seems needed to account for some path problems
+RUN alias gdb=/benzene/gdb-11.2/gdb/gdb 
+RUN echo "alias gdb=/benzene/gdb-11.2/gdb/gdb"> /root/.bashrc
+RUN if [ ! -d /usr/local/share/gdb/ ]; then  mkdir -p /usr/local/share/gdb; fi
+RUN ln -s /usr/share/gdb/python /usr/local/share/gdb/python
+
+WORKDIR /benzene

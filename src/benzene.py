@@ -116,15 +116,22 @@ def run_dynvfg(config: BenzeneConfig):
         stdin = subprocess.PIPE
         if config.stdin_filepath:
             stdin = open(config.stdin_filepath, 'rb')
-
-        ret = subprocess.run(cmd_list,
+        retries = 5
+        for i in range(retries):
+            
+            ret = subprocess.run(cmd_list,
                             stdin=stdin,
-                            stdout=open(os.devnull, 'wb'),
-                            stderr=open(os.devnull, 'wb'))
+                            stdout=open(f"pintool-stdout-run{i}", 'wb'),
+                            stderr=open(f"pintool-stderr-run{i}", 'wb'))
+        
+            
 
-        if ret.returncode != 0:
-            print("[FATAL] Something went wrong!")
-            return -1
+            if ret.returncode != 0:
+                print(f"[FATAL] Something went wrong!, run {i}")
+            else:
+                break
+            if i == retries-1:
+                return -1
 
         if config.stdin_filepath: stdin.close()
 
@@ -643,6 +650,12 @@ def init_options():
             new_match = r.search(asan_report_txt)
             if new_match == None:
                 print("ASAN report parsing failed")
+                print(asan_report_txt)
+                try: 
+                    with open("log.txt", "w") as f:
+                        f.write(asan_report_txt)
+                except:
+                    print("bailing out")
                 exit(-1)
             config.asan_report_addr = int(new_match.group(1), 16) #todo: for now I just assume that asan report type is not used 
             # and that asan report addr parsed like this in this context is ok -> @todo check on backtracer.py
@@ -655,7 +668,9 @@ def init_options():
         p = subprocess.Popen(config.target_cmd.split(), stdin=stdin, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
         p.wait()
         
-        if p.returncode != -11: # SIGSEGV's return code: -11
+        # 
+        # if p.returncode != -11: # SIGSEGV's return code: -11
+        if p.returncode == 0:
             print("target command \"%s\" does not crash, please re-check your commandline" % (config.target_cmd))
             exit(-1)
 
