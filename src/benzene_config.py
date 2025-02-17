@@ -3,6 +3,7 @@ from typing import List
 class BenzeneConfig:
     def __init__(self):
         self.outdir_path: str = None
+        self.debug: bool = False
         self.target_cmd: str = None
         self.num_proc: int = None
         self.backtrace_timeout: int = 600
