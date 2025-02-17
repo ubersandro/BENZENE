@@ -74,11 +74,11 @@ def run_backtracer(config: BenzeneConfig):
             err = open(f"backtracer-record-err-run-{i}", "w") if config.debug else subprocess.DEVNULL
             p = subprocess.Popen(cmd_list, stdin=stdin, stdout=out, stderr=err)
             p.wait()
-            if not os.path.exists(rr_trace_path) or p.returncode != 0: # this might help
+            if not os.path.exists(rr_trace_path):
                 print(f"[FATAL] RR recording failed, run {i}")
                 time.sleep(2)
             else:
-                break # assuming this is enough
+                break
         if i == retries -1:
             print(f"[FATAL] RR recording failed {retries} times, please check the log files")
             return -1
