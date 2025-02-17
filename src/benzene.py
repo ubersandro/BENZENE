@@ -66,13 +66,21 @@ def run_backtracer(config: BenzeneConfig):
             # print("Please run this command in manual: \"%s\"" % (subprocess.list2cmdline(cmd_list)))
             # exit(0)
             stdin = open(config.stdin_filepath, 'rb')
-            
-
-        p = subprocess.Popen(cmd_list, stdin=stdin, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        p.wait()
-
-        if not os.path.exists(rr_trace_path):
-            print("[FATAL] RR recording failed")
+        
+        retries = 3
+        for i in range(retries):
+            logging.debug("[*DEBUG*] run_backtracer RECORD: try %d " % (i))
+            out = open(f"backtracer-record-out-run-{i}", "w") if config.debug else subprocess.DEVNULL
+            err = open(f"backtracer-record-err-run-{i}", "w") if config.debug else subprocess.DEVNULL
+            p = subprocess.Popen(cmd_list, stdin=stdin, stdout=out, stderr=err)
+            p.wait()
+            if not os.path.exists(rr_trace_path) or p.returncode != 0: # this might help
+                print(f"[FATAL] RR recording failed, run {i}")
+                time.sleep(2)
+            else:
+                break # assuming this is enough
+        if i == retries -1:
+            print(f"[FATAL] RR recording failed {retries} times, please check the log files")
             return -1
 
     if not os.path.exists(origin_json_path):
@@ -80,16 +88,30 @@ def run_backtracer(config: BenzeneConfig):
         source_cmd = '\n\npy out_dir=\'%s\'\nsource %s\n' % (config.outdir_path, backtracer_path)
 
         print("[INFO] extracting target functions (timeout: %d sec)" % (config.backtrace_timeout))
-        p = subprocess.Popen([rr_path, 'replay', rr_trace_path], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        # p = subprocess.Popen(['rr', 'replay', rr_trace_path], stdin=subprocess.PIPE)
-        print("This step may take a while, please wait a minute...")
+        
+        retries = 5
+        logging.debug("[*DEBUG*] backtracer script : \"%s\"" % (subprocess.list2cmdline([rr_path, 'replay', rr_trace_path])))
+        logging.debug(f"[*DEBUG*] backtracer tries: {retries}")
+        
+        for i in range(retries):
+            out = open(f"backtracer-replay-out-run-{i}", "w") if config.debug else subprocess.DEVNULL
+            err = open(f"backtracer-replay-err-run-{i}", "w") if config.debug else subprocess.DEVNULL
+            p = subprocess.Popen([rr_path, 'replay', rr_trace_path], stdin=subprocess.PIPE, stdout=out, stderr=err)
+            # p = subprocess.Popen(['rr', 'replay', rr_trace_path], stdin=subprocess.PIPE)
+            #print("This step may take a while, please wait a minute...")
 
-        p.communicate(input=bytes(source_cmd, 'utf-8'))
-        p.wait()
+            p.communicate(input=bytes(source_cmd, 'utf-8'))
+            p.wait()
 
-        if p.returncode != 0:
-            print("[FATAL] function extraction failed...")
-            return -1
+            if p.returncode != 0:
+                print(f"[FATAL] RR replay failed, run {i}")
+                time.sleep(2)
+                if i == retries - 1:
+                    print(f"[FATAL] RR replay failed {retries} times, please check the log files")
+                    return -1
+            else:
+                break
+            
     else:
         print("[INFO] \"%s\" already exists, skip reverse backtracer" % (origin_json_path))
 
@@ -111,20 +133,30 @@ def run_dynvfg(config: BenzeneConfig):
         cmd_list += ['--']
         cmd_list += config.target_cmd.split()
         
-        print("[INFO] Constructing dynamic value flow graph (cmd : \"{}\")".format(subprocess.list2cmdline(cmd_list)))
+        retries = 5
+        print("[INFO] Constructing dynamic value flow graph (cmd : \"{}\"), number of trials {}".format(subprocess.list2cmdline(cmd_list), retries))
         
         stdin = subprocess.PIPE
         if config.stdin_filepath:
             stdin = open(config.stdin_filepath, 'rb')
-
-        ret = subprocess.run(cmd_list,
+        
+        for i in range(retries):
+            logging.debug("[*DEBUG*] run_dynvfg: try %d " % (i))
+            out = open(f"pintool-out-run{i}", 'wb') if config.debug else subprocess.DEVNULL
+            err = open(f"pintool-err-run{i}", 'wb') if config.debug else subprocess.DEVNULL
+            ret = subprocess.run(cmd_list,
                             stdin=stdin,
-                            stdout=open(os.devnull, 'wb'),
-                            stderr=open(os.devnull, 'wb'))
-
-        if ret.returncode != 0:
-            print("[FATAL] Something went wrong!")
-            return -1
+                            stdout=out,
+                            stderr=err)
+        
+            if ret.returncode != 0:
+                print(f"[FATAL] Pintool failed, run {i}, sleeping for 2s")
+                time.sleep(2)
+            else:
+                break
+            if i == retries-1:
+                print(f"[FATAL] Pintool failed {retries} times, please check the log files")
+                return -1
 
         if config.stdin_filepath: stdin.close()
 
@@ -255,7 +287,7 @@ class Benzene:
 
     def fuzz(self):
         sessions_to_fuzz: List[BenzeneFuzzSession] = []
-
+        logging.debug("[*DEBUG*] fuzzing session tree : \n%s" % (str(self.session_tree)))
         if self.resume:
             for each_level in self.session_tree:
                 for session in each_level:
@@ -612,12 +644,20 @@ def init_options():
     if config.stdin_filepath:
         stdin = open(config.stdin_filepath, 'rb')
 
+    config.benzene_log_path = os.path.join(config.outdir_path, 'benzene.log')
+    if args_dict['debug'] != None:
+        config.debug = True
+        logging.basicConfig(filename=config.benzene_log_path, filemode='w', level=logging.DEBUG)
+    else:
+        logging.basicConfig(filename=config.benzene_log_path, filemode='w', level=logging.INFO)
+
+    
     print("[INFO] first check if command \"%s\" makes crash" % (config.target_cmd))
     # parse ASAN-related metadata
     if config.asan == True:
         try:
-            if os.environ['ASAN_OPTIONS'] != 'detect_leaks=0':
-                print("ASAN's detect_leaks option not disabled. Please run \"export ASAN_OPTIONS=detect_leaks=0\"")
+            if not 'detect_leaks=0' in os.environ['ASAN_OPTIONS']:
+                print("ASAN's detect_leaks option not disabled. Please run \"export ASAN_OPTIONS=detect_leaks=0:$ASAN_OPTIONS\"")
                 exit(-1)
         except KeyError:
             print("ASAN's detect_leaks option not disabled. Please run \"export ASAN_OPTIONS=detect_leaks=0\"")
@@ -636,29 +676,37 @@ def init_options():
 
         match = regex.search(asan_report_txt)
         if match == None:
-            print("ASAN report parsing failed")
-            exit(-1)
+            # report might be linked to the use of sanitizer for sigsegv
+            # exemplar : ==3658==ERROR: AddressSanitizer: SEGV on unknown address 0x000000000011 (pc 0x5555558a7148 bp 0x7fffffffe1e0 sp 0x7fffffffe1a0 T0)
+            logging.debug("[*DEBUG*] ASAN report parsing failed. Trying new match for SIGSEGV.")
+            r  = re.compile(r'SEGV\son\sunknown\saddress\s0x[0-9abcdef]*\s\(pc\s(0x[0-9abcdef]*)')
+            new_match = r.search(asan_report_txt)
+            if new_match == None:
+                logging.debug("[*DEBUG*] ASAN report parsing for SIGSEGV failed.")
+                logging.debug("*************************************************************")
+                logging.debug(asan_report_txt)
+                logging.debug("*************************************************************")
+                exit(-1)
+            config.asan_report_addr = int(new_match.group(1), 16) #todo: for now I just assume that asan report type is not used 
+            # and that asan report addr parsed like this in this context is ok -> @todo check on backtracer.py
+            logging.debug(f"[*DEBUG*] 0x{config.asan_report_addr:x}")
 
-        config.asan_type = match.group(1)
-        config.asan_report_addr = int(match.group(2), 16)
+        else: 
+            config.asan_type = match.group(1)
+            config.asan_report_addr = int(match.group(2), 16)
     else:
         p = subprocess.Popen(config.target_cmd.split(), stdin=stdin, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
         p.wait()
         
-        if p.returncode != -11: # SIGSEGV's return code: -11
+        # 
+        # if p.returncode != -11: # SIGSEGV's return code: -11
+        if p.returncode == 0: # todo: this must be checked
             print("target command \"%s\" does not crash, please re-check your commandline" % (config.target_cmd))
             exit(-1)
 
     print("[INFO] crash check done")
 
     if config.stdin_filepath: stdin.close()
-
-    config.benzene_log_path = os.path.join(config.outdir_path, 'benzene.log')
-    if args_dict['debug'] != None:
-        logging.basicConfig(filename=config.benzene_log_path, filemode='w', level=logging.DEBUG)
-    else:
-        logging.basicConfig(filename=config.benzene_log_path, filemode='w', level=logging.INFO)
-
     benzene.config = config
     return 0
 
